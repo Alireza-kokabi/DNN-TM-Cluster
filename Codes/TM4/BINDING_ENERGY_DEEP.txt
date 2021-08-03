@@ -1,0 +1,122 @@
+import os
+import numpy as np
+import pandas as pd
+import time
+import matplotlib.pyplot as plt
+import tensorflow as tf
+import matplotlib.pyplot as plt
+import psycopg2 as ps
+from __future__ import print_function
+from tensorflow import keras
+from sklearn.preprocessing import StandardScaler
+from keras.models import Model
+from keras.layers import Concatenate, Dense, LSTM, Input, concatenate
+from keras.optimizers import Adagrad
+
+datasource = "/content/drive/MyDrive/Colab Notebooks/Parameters_min4_eV_jadid.txt"
+dataframe=pd.read_csv(datasource,sep=',')
+display(dataframe)
+
+#from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
+Data_x=dataframe.loc[:,['HOMO','Number','Mass']]
+
+Data_x=Data_x.values
+scaler_x = MinMaxScaler()
+Data_x = scaler_x.fit_transform(Data_x)
+X_train= np.delete(Data_x, (1), axis=0)
+num=dataframe.loc[:,['Number']]
+num=num.values
+num= num[1]#,num[12],num[13],num[14],num[15],num[17],num[18]
+#X_train = Data_x.drop([0])
+X_test=Data_x[1]#,Data_x[12],Data_x[13],Data_x[14],Data_x[15],Data_x[17],Data_x[18]
+X_test= np.array(X_test)
+Data_y=dataframe.loc[:,['Binding Energy']]
+#Data_y = scaler.fit_transform(Data_y)
+Data_y=Data_y.values
+scaler_y =  MinMaxScaler()
+Data_y = scaler_y.fit_transform(Data_y)
+y_train = np.delete(Data_y, (1), axis=0)
+y_test=Data_y[1]#,Data_y[12],Data_y[13],Data_y[14],Data_y[15],Data_y[17],Data_y[18]
+y_test=np.array(y_test)
+print("X_train",X_train)
+print("X_test",X_test)
+print("y_train",y_train)
+print("y_test",y_test)
+
+
+X_train.shape
+model = keras.models.Sequential([
+keras.layers.Dense(11, activation="selu"),
+keras.layers.Dense(9, activation="selu"),
+keras.layers.Dense(7, activation="selu"),
+keras.layers.Dense(5, activation="selu"),
+keras.layers.Dense(3, activation="selu"),
+keras.layers.Dense(3, activation="selu"),
+keras.layers.Dense(2, activation="selu"),
+keras.layers.Dense(1)
+])
+model.compile(loss="mean_squared_error", optimizer="RMSProp")
+history = model.fit(X_train, y_train, epochs=2700,verbose=0)
+model.save("my_keras_model.h20")
+#mse_test = model.evaluate(X_test, y_test)
+print("time_1",time.time(), time.clock())
+tstart_train=time.time()
+y=model.predict(X_train)
+
+tend_train=time.time()
+
+
+tstart_test=time.time()
+
+y_pred = model.predict(X_test.reshape(1,-1))
+#y_pred = model.predict(X_test)
+tend_test=time.time()
+
+
+y_mean = y_test.mean()
+MSE=((1/1)*sum((y_pred-y_test)**2))
+MSE_TRAIN=((1/9)*sum((y-y_train)**2))
+print('INPUT DATA TRAIN',X_train)
+print('OUTPUT DATA TRAIN',y_train)
+print('INPUT DATA TEST',X_test)
+print('OUTPUT DATA TEST',y_test)
+print("y PREDICT FOR TRAIN DATA=",y)
+print("y PREDICT FOR TEST DATA=",y_pred)
+
+
+
+fig = plt.figure(figsize=(11,7))
+x = fig.add_subplot(211)
+x0 = fig.add_subplot(212)
+x.set_title('train',fontsize=18)
+x.plot(y_train,color='r',lw=2,label='Output_train real')
+x.plot(y,color='b',marker='None',linestyle=':',lw=3,markersize=8,label='output Train Data neural network')
+
+
+x.tick_params(labelsize=16)
+x.legend(fontsize=16,loc='best')
+x.grid()
+x0.set_title('Test waveform',fontsize=18)
+x0.plot(y_test,color='r',marker='None',linestyle='--',lw=3,markersize=3,label=' TEST OUTPUT  DATA REAL')
+x0.plot(y_pred,color='b',marker='o',linestyle=':',lw=5,markeredgewidth=0.0, fillstyle='none',markersize=6,label='TEST OUTPUT PREDICT NEURAL NETWORK')
+
+
+
+x0.tick_params(labelsize=12)
+#x0.legend(fontsize=10,loc='best')
+x0.grid()
+plt.show()
+
+
+print(num)
+print('INPUT DATA TEST RESHAPE',X_test)
+plt.scatter(num, y_pred)
+plt.scatter(num, y_test)
+plt.show()
+
+print("OUTPUT DATA TEST:",y_test)
+print("y PREDICT FOR TEST DATA:",y_pred)
+print("OUTPUT DATA TEST_ no scalar:",scaler_y.inverse_transform(y_test.reshape(-1,1)))
+print("y PREDICT FOR TEST DATA_no scaler:",scaler_y.inverse_transform(y_pred))
+print("error t0:",y_pred[0]-y_test[0])
